@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PDU Nursing Note Builder</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1a1f29; --muted: #4a5363;
+    --border: #8a93a3; --accent: #005eb8; --accent-dark: #003d78;
+    --focus: #ffb81c; --ok: #007f3b; --soft: #eef3fa;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #12151b; --card: #1c212b; --text: #eef1f5; --muted: #b5bdca;
+      --border: #6b7484; --accent: #4f9dff; --accent-dark: #8cc0ff; --ok: #3ccf7a; --soft: #232a36; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+    font-size: 1.0625rem; line-height: 1.5; background: var(--bg); color: var(--text); }
+  main { max-width: 780px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  .intro { color: var(--muted); margin: 0 0 1.25rem; }
+  fieldset { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 1rem 1rem 1.1rem; margin: 0 0 1rem; min-width: 0; }
+  legend { font-weight: 700; padding: 0 .4rem; font-size: 1.05rem; }
+  fieldset.plain { border: none; padding: 0; margin: 0 0 1rem; background: none; }
+  fieldset.plain:last-child { margin-bottom: 0; }
+  fieldset.plain > legend { padding: 0; font-weight: 600; font-size: 1rem; margin-bottom: .4rem; }
+  .first { border: 2px solid var(--accent); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .85rem; }
+  .full { grid-column: 1 / -1; }
+  label { display: block; font-weight: 600; margin-bottom: .25rem; }
+  .hint { display: inline; font-weight: 400; color: var(--muted); font-size: .9rem; }
+  input[type=text], input[type=number], select { font: inherit; padding: .6rem .7rem;
+    border: 2px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); min-height: 44px; }
+  input[type=text] { width: 100%; }
+  input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .unit-wrap { display: flex; align-items: center; gap: .4rem; }
+  .unit-wrap input { flex: 1 1 auto; min-width: 5rem; width: 100%; }
+  .unit-wrap span { color: var(--muted); white-space: nowrap; }
+  .pair { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+  .pair input { width: 7rem; font-size: 1.25rem; text-align: center; }
+  .pair input.small { width: 5rem; }
+  .pair .slash { font-size: 1.4rem; font-weight: 700; }
+  .pair .u { color: var(--muted); }
+  .choices { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .choice { position: relative; }
+  .choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .choice label { margin: 0; font-weight: 600; border: 2px solid var(--border); border-radius: 999px;
+    padding: .5rem 1rem; cursor: pointer; min-height: 44px; display: flex; align-items: center; background: var(--card); }
+  .choice input:checked + label { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .choice input:checked + label::before { content: "✓ "; white-space: pre; }
+  .choice input:focus-visible + label { outline: 3px solid var(--focus); outline-offset: 2px; }
+  input:focus-visible, button:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .sub { margin-top: 1rem; padding: 1rem; border-radius: 8px; background: var(--soft); }
+  [hidden] { display: none !important; }
+  .sym { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem .75rem; padding: .5rem 0; border-bottom: 1px solid var(--border); }
+  .sym:last-child { border-bottom: none; }
+  .sym .chk { display: flex; align-items: center; gap: .6rem; margin: 0; flex: 1 1 220px; cursor: pointer; min-height: 44px; }
+  .sym input[type=checkbox], .tick input[type=checkbox] { width: 1.4rem; height: 1.4rem; accent-color: var(--accent); flex: none; }
+  .sym select { min-width: 6rem; }
+  .sym select:disabled { opacity: .45; }
+  .tick { display: flex; align-items: center; gap: .6rem; margin: 0 0 .5rem; cursor: pointer; min-height: 44px; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin-bottom: .75rem; }
+  .output { background: var(--card); border: 2px solid var(--accent); border-radius: 10px; padding: 1rem; }
+  .output h2 { font-size: 1.1rem; margin: 0 0 .5rem; }
+  textarea { width: 100%; min-height: 10rem; font: inherit; padding: .75rem; border: 2px solid var(--border);
+    border-radius: 8px; background: var(--bg); color: var(--text); resize: vertical; }
+  .actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .75rem; align-items: center; }
+  button { font: inherit; font-weight: 700; border-radius: 8px; padding: .65rem 1.2rem; min-height: 44px; cursor: pointer; }
+  .primary { background: var(--accent); color: #fff; border: 2px solid var(--accent); }
+  .primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+  .secondary { background: transparent; color: var(--text); border: 2px solid var(--border); }
+  #status { font-weight: 600; color: var(--ok); }
+  .addinfo { margin: 0 0 .75rem; padding: .6rem .8rem; border-left: 4px solid var(--focus); background: var(--soft); font-weight: 600; border-radius: 4px; }
+  .txcard { padding: 1rem; border-radius: 8px; background: var(--soft); margin-top: .5rem; }
+  .txcard h3 { margin: 0 0 .5rem; font-size: 1rem; }
+  .txcard .sub { background: var(--card); }
+  .mods { flex-basis: 100%; padding: 0 0 .25rem 2rem; }
+  .mods .choice label { padding: .35rem .8rem; font-size: .95rem; min-height: 38px; }
+  .note { color: var(--muted); font-size: .9rem; margin-top: .75rem; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<main>
+  <h1>PDU Nursing Note Builder</h1>
+  <p class="intro">Choose the note type, fill in the boxes, then copy the note. Blank boxes show as ___ so you can spot gaps.</p>
+
+  <form id="f" novalidate>
+    <fieldset class="first">
+      <legend>What are you documenting?</legend>
+      <div class="choices">
+        <div class="choice"><input type="radio" name="tpl" id="tpl-tx" value="tx"><label for="tpl-tx">Treatment</label></div>
+        <div class="choice"><input type="radio" name="tpl" id="tpl-bl" value="bl"><label for="tpl-bl">Pre-chemo bloods &amp; SACT Ax</label></div>
+      </div>
+    </fieldset>
+
+    <div id="common" hidden>
+      <fieldset>
+        <legend>Patient</legend>
+        <label for="name">Name</label>
+        <input type="text" id="name" autocomplete="off">
+      </fieldset>
+    </div>
+
+    <!-- ================= TREATMENT ================= -->
+    <div id="tpl-treatment" hidden>
+      <fieldset>
+        <legend>Treatment</legend>
+        <div id="tx1"></div>
+        <label class="tick" style="margin-top:1rem"><input type="checkbox" id="tx2on"> Add a second treatment</label>
+        <div id="tx2" hidden></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Observations</legend>
+        <div class="grid">
+          <div class="full">
+            <label id="bp-label">BP <span class="hint">systolic / diastolic</span></label>
+            <div class="pair" role="group" aria-labelledby="bp-label">
+              <input type="number" id="sys" inputmode="numeric" aria-label="Systolic, mmHg">
+              <span class="slash" aria-hidden="true">/</span>
+              <input type="number" id="dia" inputmode="numeric" aria-label="Diastolic, mmHg">
+              <span class="u">mmHg</span>
+            </div>
+          </div>
+          <div>
+            <label for="hr">HR</label>
+            <div class="unit-wrap"><input type="number" id="hr" inputmode="numeric"><span>bpm</span></div>
+          </div>
+          <div>
+            <label for="rr">RR</label>
+            <div class="unit-wrap"><input type="number" id="rr" inputmode="numeric"><span>cpm</span></div>
+          </div>
+          <div>
+            <label for="spo2">SpO<sub>2</sub></label>
+            <div class="unit-wrap"><input type="number" id="spo2" inputmode="numeric"><span>% in RA</span></div>
+          </div>
+          <div>
+            <label for="temp">Temp</label>
+            <div class="unit-wrap"><input type="number" id="temp" inputmode="decimal" step="0.1"><span>°C</span></div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Line access</legend>
+        <div class="choices">
+          <div class="choice"><input type="radio" name="access" id="a-pvad" value="PVAD"><label for="a-pvad">PVAD</label></div>
+          <div class="choice"><input type="radio" name="access" id="a-picc" value="PICC"><label for="a-picc">PICC</label></div>
+          <div class="choice"><input type="radio" name="access" id="a-port" value="Port"><label for="a-port">Port</label></div>
+          <div class="choice"><input type="radio" name="access" id="a-none" value="none"><label for="a-none">None</label></div>
+        </div>
+        <div class="sub" id="pvad-details" hidden>
+          <fieldset class="plain">
+            <legend>Which hand? (24ga)</legend>
+            <div class="choices">
+              <div class="choice"><input type="radio" name="side" id="s-left" value="left"><label for="s-left">Left</label></div>
+              <div class="choice"><input type="radio" name="side" id="s-right" value="right"><label for="s-right">Right</label></div>
+            </div>
+          </fieldset>
+          <fieldset class="plain">
+            <legend>Bled well on which attempt?</legend>
+            <div class="choices">
+              <div class="choice"><input type="radio" name="attempt" id="t1" value="1st"><label for="t1">1st</label></div>
+              <div class="choice"><input type="radio" name="attempt" id="t2" value="2nd"><label for="t2">2nd</label></div>
+              <div class="choice"><input type="radio" name="attempt" id="t3" value="3rd"><label for="t3">3rd</label></div>
+            </div>
+          </fieldset>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Premeds</legend>
+        <div class="choices">
+          <div class="choice"><input type="radio" name="pm" id="pm-given" value="given" checked><label for="pm-given">Given</label></div>
+          <div class="choice"><input type="radio" name="pm" id="pm-none" value="none"><label for="pm-none">No premeds required</label></div>
+        </div>
+        <div class="sub" id="pm-details">
+          <p class="hint" style="display:block;margin:0 0 .75rem">Optional details. Leave blank for "Premeds given."</p>
+          <fieldset class="plain">
+            <legend>Route</legend>
+            <div class="choices">
+              <div class="choice"><input type="radio" name="pmroute" id="pr-iv" value="IV"><label for="pr-iv">IV</label></div>
+              <div class="choice"><input type="radio" name="pmroute" id="pr-po" value="PO"><label for="pr-po">PO</label></div>
+            </div>
+          </fieldset>
+          <fieldset class="plain">
+            <legend>What <span class="hint">(tick all that apply)</span></legend>
+            <div class="choices">
+              <div class="choice"><input type="checkbox" name="pmdrug" id="pd-ak" value="Akynzeo"><label for="pd-ak">Akynzeo</label></div>
+              <div class="choice"><input type="checkbox" name="pmdrug" id="pd-ap" value="Aprepitant"><label for="pd-ap">Aprepitant</label></div>
+              <div class="choice"><input type="checkbox" name="pmdrug" id="pd-pm" value="premeds"><label for="pd-pm">Premeds</label></div>
+            </div>
+          </fieldset>
+          <fieldset class="plain">
+            <legend>When</legend>
+            <div class="choices">
+              <div class="choice"><input type="radio" name="pmwhen" id="pw-home" value="taken at home"><label for="pw-home">Taken at home</label></div>
+              <div class="choice"><input type="radio" name="pmwhen" id="pw-30" value="given 30 mins prior"><label for="pw-30">Given 30 mins prior</label></div>
+              <div class="choice"><input type="radio" name="pmwhen" id="pw-60" value="given 1 hr prior"><label for="pw-60">Given 1 hr prior</label></div>
+            </div>
+          </fieldset>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Discharge</legend>
+        <fieldset class="plain">
+          <legend>TTOs</legend>
+          <div class="choices">
+            <div class="choice"><input type="radio" name="tto" id="tto-yes" value="yes" checked><label for="tto-yes">TTOs dispensed</label></div>
+            <div class="choice"><input type="radio" name="tto" id="tto-no" value="no"><label for="tto-no">No TTOs required</label></div>
+          </div>
+        </fieldset>
+        <fieldset class="plain">
+          <legend>Upcoming appointments <span class="hint">(optional)</span></legend>
+          <label class="tick"><input type="checkbox" id="ct"> CT scan</label>
+          <div class="row" id="ct-date" hidden>
+            <div class="pair" role="group" aria-label="CT scan date">
+              <input type="number" class="small" id="ct-d" inputmode="numeric" aria-label="CT day" placeholder="dd">
+              <span class="slash" aria-hidden="true">/</span>
+              <input type="number" class="small" id="ct-m" inputmode="numeric" aria-label="CT month" placeholder="mm">
+            </div>
+          </div>
+          <label class="tick"><input type="checkbox" id="opa"> Clinic OPA</label>
+          <div class="row" id="opa-date" hidden>
+            <div class="pair" role="group" aria-label="Clinic OPA date">
+              <input type="number" class="small" id="opa-d" inputmode="numeric" aria-label="OPA day" placeholder="dd">
+              <span class="slash" aria-hidden="true">/</span>
+              <input type="number" class="small" id="opa-m" inputmode="numeric" aria-label="OPA month" placeholder="mm">
+            </div>
+          </div>
+        </fieldset>
+      </fieldset>
+    </div>
+
+    <!-- ================= PRE-CHEMO BLOODS ================= -->
+    <div id="tpl-bloods" hidden>
+      <fieldset>
+        <legend>Procedure</legend>
+        <fieldset class="plain">
+          <legend>Consented to</legend>
+          <div class="choices">
+            <div class="choice"><input type="radio" name="bproc" id="bp-picc" value="PICC"><label for="bp-picc">PICC flush &amp; bloods</label></div>
+            <div class="choice"><input type="radio" name="bproc" id="bp-port" value="port"><label for="bp-port">Port flush &amp; bloods</label></div>
+            <div class="choice"><input type="radio" name="bproc" id="bp-per" value="peripheral"><label for="bp-per">Peripheral bloods</label></div>
+          </div>
+        </fieldset>
+        <div style="max-width:220px">
+          <label for="weight">Weight</label>
+          <div class="unit-wrap"><input type="number" id="weight" inputmode="decimal" step="0.1"><span>kg</span></div>
+        </div>
+
+        <div class="sub" id="bl-picc" hidden>
+          <fieldset class="plain">
+            <legend>PICC side</legend>
+            <div class="choices">
+              <div class="choice"><input type="radio" name="pside" id="ps-r" value="Right"><label for="ps-r">Right</label></div>
+              <div class="choice"><input type="radio" name="pside" id="ps-l" value="Left"><label for="ps-l">Left</label></div>
+            </div>
+          </fieldset>
+          <fieldset class="plain">
+            <legend>SecurAcath</legend>
+            <div class="choices">
+              <div class="choice"><input type="radio" name="psec" id="sec-w" value="with"><label for="sec-w">With SecurAcath</label></div>
+              <div class="choice"><input type="radio" name="psec" id="sec-wo" value="without"><label for="sec-wo">Without SecurAcath</label></div>
+            </div>
+          </fieldset>
+          <div style="max-width:200px;margin-bottom:1rem">
+            <label for="pcm">Length in</label>
+            <div class="unit-wrap"><input type="number" id="pcm" inputmode="decimal" step="0.5"><span>cm</span></div>
+          </div>
+          <fieldset class="plain">
+            <legend>Dressed with <span class="hint">(tick all that apply)</span></legend>
+            <div class="choices">
+              <div class="choice"><input type="checkbox" name="dress" id="dr-chg" value="CHG"><label for="dr-chg">CHG</label></div>
+              <div class="choice"><input type="checkbox" name="dress" id="dr-iv3" value="IV3000"><label for="dr-iv3">IV3000</label></div>
+              <div class="choice"><input type="checkbox" name="dress" id="dr-365" value="365 film"><label for="dr-365">365 film</label></div>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="sub" id="bl-port" hidden>
+          <fieldset class="plain">
+            <legend>Huber needle size</legend>
+            <div class="choices">
+              <div class="choice"><input type="radio" name="huber" id="h12" value="12mm"><label for="h12">12mm</label></div>
+              <div class="choice"><input type="radio" name="huber" id="h15" value="15mm"><label for="h15">15mm</label></div>
+              <div class="choice"><input type="radio" name="huber" id="h20" value="20mm"><label for="h20">20mm</label></div>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="sub" id="bl-site" hidden>
+          <fieldset class="plain">
+            <legend>Site</legend>
+            <div class="choices">
+              <div class="choice"><input type="radio" name="site" id="si-h" value="healthy with no signs of infection"><label for="si-h">Healthy, no signs of infection</label></div>
+              <div class="choice"><input type="radio" name="site" id="si-s" value="slightly sore"><label for="si-s">Slightly sore</label></div>
+            </div>
+          </fieldset>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>SACT assessment</legend>
+        <div class="choices" style="margin-bottom:.5rem">
+          <div class="choice"><input type="radio" name="sact" id="sa-nil" value="nil"><label for="sa-nil">Nil new concern reported</label></div>
+          <div class="choice"><input type="radio" name="sact" id="sa-sym" value="sym"><label for="sa-sym">Symptoms reported</label></div>
+        </div>
+        <div class="sub" id="sym-list" hidden>
+          <p class="hint" style="display:block;margin:0 0 .25rem">Tick each symptom and pick its grade.</p>
+          <div id="syms"></div>
+        </div>
+      </fieldset>
+    </div>
+  </form>
+
+  <section class="output" aria-labelledby="out-h" id="output" hidden>
+    <p class="addinfo">Add info as necessary.</p>
+    <h2 id="out-h">Your note</h2>
+    <label for="out" class="sr-only">Generated nursing note (you can edit it here before copying)</label>
+    <textarea id="out" spellcheck="true"></textarea>
+    <div class="actions">
+      <button type="button" class="primary" id="copy">Copy note</button>
+      <button type="button" class="secondary" id="clear">Clear all</button>
+      <span id="status" role="status" aria-live="polite"></span>
+    </div>
+    <p class="note">Nothing is saved. All details disappear when you close or clear the page.</p>
+  </section>
+</main>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const val = id => $(id).value.trim();
+  const radio = name => { const r = document.querySelector('input[name="' + name + '"]:checked'); return r ? r.value : ''; };
+  const checks = name => Array.from(document.querySelectorAll('input[name="' + name + '"]:checked')).map(c => c.value);
+  const b = v => v || '___';
+  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  const andJoin = arr => arr.length <= 1 ? arr.join('') : arr.slice(0, -1).join(', ') + ' & ' + arr[arr.length - 1];
+  const pad = v => v ? String(v).padStart(2, '0') : '__';
+
+  // ---- Symptom list for SACT Ax ----
+  const SYMS = [
+    { id: 'fat', label: 'Tiredness / fatigue', text: 'tiredness/fatigue' },
+    { id: 'nau', label: 'Nausea', text: 'nausea' },
+    { id: 'vom', label: 'Vomiting', text: 'vomiting' },
+    { id: 'dia', label: 'Diarrhoea', text: 'diarrhoea' },
+    { id: 'con', label: 'Constipation', text: 'constipation' },
+    { id: 'pn', label: 'Peripheral neuropathy', text: 'PN on', opts: ['hands', 'feet', 'hands & feet'] },
+    { id: 'ppe', label: 'PPE (palmar-plantar erythrodysaesthesia)', text: 'PPE' },
+    { id: 'swe', label: 'Swelling', text: 'swelling' },
+    { id: 'mou', label: 'Sore mouth', text: 'sore mouth' },
+    { id: 'pai', label: 'Pain', text: 'pain' },
+    { id: 'app', label: 'Loss of appetite / taste', text: 'loss of', opts: ['appetite', 'taste', 'appetite & taste'] }
+  ];
+  const MODS = ['not worse', 'not affecting ADLs', 'managing with ADLs', 'new', 'usual', 'longstanding'];
+  const symWrap = $('syms');
+  SYMS.forEach(s => {
+    const row = document.createElement('div');
+    row.className = 'sym';
+    let extra = '';
+    if (s.opts) {
+      extra = '<select id="sym-' + s.id + '-o" aria-label="' + s.label + ': where" disabled>' +
+        s.opts.map(o => '<option value="' + o + '">' + cap(o) + '</option>').join('') + '</select>';
+    }
+    const mods = '<div class="mods" id="sym-' + s.id + '-mods" role="group" aria-label="' + s.label + ': details" hidden><div class="choices">' +
+      MODS.map((m, i) => '<div class="choice"><input type="checkbox" name="mod-' + s.id + '" id="mod-' + s.id + '-' + i +
+        '" value="' + m + '"><label for="mod-' + s.id + '-' + i + '">' + cap(m) + '</label></div>').join('') + '</div></div>';
+    row.innerHTML =
+      '<label class="chk"><input type="checkbox" id="sym-' + s.id + '"> ' + s.label + '</label>' + extra +
+      '<select id="sym-' + s.id + '-g" aria-label="' + s.label + ': grade" disabled>' +
+      '<option value="1">Grade 1</option><option value="2">Grade 2</option><option value="3">Grade 3</option></select>' + mods;
+    symWrap.appendChild(row);
+  });
+
+  // ---- Treatment cards ----
+  function radios(name, opts, checked) {
+    return '<div class="choices">' + opts.map(([v, l]) => {
+      const id = name + '-' + v.replace(/\W/g, '');
+      return '<div class="choice"><input type="radio" name="' + name + '" id="' + id + '" value="' + v + '"' +
+        (v === checked ? ' checked' : '') + '><label for="' + id + '">' + l + '</label></div>';
+    }).join('') + '</div>';
+  }
+  function txCard(n, types, def) {
+    const p = 'tx' + n;
+    return '<div class="txcard"><h3>Treatment ' + n + '</h3>' +
+      '<label for="' + p + '-name">Treatment name</label><input type="text" id="' + p + '-name" autocomplete="off">' +
+      '<fieldset class="plain" style="margin-top:1rem"><legend>Given as</legend>' + radios(p + '-type', types, def) + '</fieldset>' +
+      '<div class="sub" id="' + p + '-inf" hidden><label for="' + p + '-time">Infused for <span class="hint">e.g. 30 mins, 2 hrs</span></label>' +
+      '<input type="text" id="' + p + '-time" autocomplete="off"></div>' +
+      '<div class="sub" id="' + p + '-inj" hidden>' +
+      '<fieldset class="plain"><legend>Route</legend>' + radios(p + '-route', [['SC', 'SC'], ['IM', 'IM']]) + '</fieldset>' +
+      '<fieldset class="plain"><legend>Side</legend>' + radios(p + '-side', [['right', 'Right'], ['left', 'Left']]) + '</fieldset>' +
+      '<fieldset class="plain"><legend>Site</legend>' + radios(p + '-site', [['thigh', 'Thigh'], ['abdomen', 'Abdomen']]) + '</fieldset>' +
+      '</div></div>';
+  }
+  $('tx1').innerHTML = txCard(1, [['infusion', 'Infusion'], ['injection', 'SC / IM injection']], 'infusion');
+  $('tx2').innerHTML = txCard(2, [['infusion', 'Infusion'], ['injection', 'SC / IM injection'], ['tablets', 'Tablets']]);
+
+  function txLine(n) {
+    const p = 'tx' + n, name = val(p + '-name'), type = radio(p + '-type');
+    const Name = name ? cap(name) : '___';
+    if (type === 'infusion') return Name + ' infused for ' + b(val(p + '-time')) + ' uneventfully. ';
+    if (type === 'injection') return b(radio(p + '-route')) + ' ' + b(name) + ' injection given onto ' +
+      b(radio(p + '-side')) + ' ' + b(radio(p + '-site')) + ' with no reactions. ';
+    if (type === 'tablets') return Name + ' tablets given. ';
+    return Name + ' ___. ';
+  }
+
+  function show(id, on) { $(id).hidden = !on; }
+
+  function buildTreatment(name) {
+    const access = radio('access');
+    const two = $('tx2on').checked;
+    const names = [b(val('tx1-name'))];
+    if (two) names.push(b(val('tx2-name')));
+    const bp = (val('sys') || val('dia')) ? b(val('sys')) + '/' + b(val('dia')) : '___/___';
+
+    let s = name + ' attended PDU & consented to ' + andJoin(names) + '. ';
+    s += 'OBS BP ' + bp + ' mmHg, HR ' + b(val('hr')) + ' bpm, RR ' + b(val('rr')) + ' cpm, SpO2 ' +
+         b(val('spo2')) + '% in RA, Temp ' + b(val('temp')) + '°C, feels well today. ';
+
+    if (access === 'PVAD') s += 'PVAD 24ga ' + b(radio('side')) + ' hand, bled well ' + b(radio('attempt')) + ' attempt. ';
+    if (access === 'PICC') s += 'PICC patent. ';
+
+    if (radio('pm') === 'none') {
+      s += 'No premeds required. ';
+    } else {
+      const r = radio('pmroute'), d = checks('pmdrug'), w = radio('pmwhen');
+      if (!r && !d.length && !w) s += 'Premeds given. ';
+      else s += cap([r, d.length ? andJoin(d) : 'premeds', w || 'given'].filter(Boolean).join(' ')) + '. ';
+    }
+
+    s += txLine(1);
+    if (two) s += txLine(2);
+
+    if (access === 'PVAD') s += 'PVAD VIP 0. ';
+    else if (access === 'PICC') s += 'PICC flushed. ';
+    else if (access === 'Port') s += 'Port flushed. ';
+
+    s += radio('tto') === 'no' ? 'Appt made, no TTOs required. ' : 'Appt made, TTOs dispensed. ';
+
+    const up = [];
+    if ($('ct').checked) up.push('CT scan on ' + pad(val('ct-d')) + '/' + pad(val('ct-m')));
+    if ($('opa').checked) up.push('clinic OPA on ' + pad(val('opa-d')) + '/' + pad(val('opa-m')));
+    if (up.length) s += cap(up.join(', ')) + '. ';
+
+    s += 'Nil issue raised. Appeared well upon discharge.';
+    return s;
+  }
+
+  function buildBloods(name) {
+    const proc = radio('bproc');
+    const procText = proc === 'PICC' ? 'PICC flush & bloods' : proc === 'port' ? 'port flush & bloods'
+                   : proc === 'peripheral' ? 'peripheral bloods' : '___';
+    let s = name + ' attended PDU & consented to ' + procText + '. Weight ' + b(val('weight')) + 'kg. ';
+
+    if (proc === 'PICC') {
+      s += b(radio('pside')) + ' PICC ' + b(radio('psec')) + ' SecurAcath with ' + b(val('pcm')) +
+           'cm in accessed aseptically, flushed & bled well. ';
+      const dr = checks('dress');
+      s += 'Cleaned & dressed aseptically with ' + (dr.length ? andJoin(dr) : '___') + '. ';
+      s += 'Site is ' + b(radio('site')) + '. ';
+    } else if (proc === 'port') {
+      s += 'Portacath accessed aseptically with ' + b(radio('huber')) + ' Huber needle, flushed & bled well. ';
+      s += 'Site is ' + b(radio('site')) + '. ';
+    }
+
+    s = s.trimEnd() + '\nSACT Ax:\n';
+    const sact = radio('sact');
+    if (sact === 'nil') {
+      s += 'Nil new concern reported.';
+    } else if (sact === 'sym') {
+      const items = SYMS.filter(x => $('sym-' + x.id).checked).map(x => {
+        const g = $('sym-' + x.id + '-g').value;
+        const t = x.opts ? x.text + ' ' + $('sym-' + x.id + '-o').value : x.text;
+        const m = checks('mod-' + x.id);
+        return 'Gr ' + g + ' ' + t + (m.length ? ', ' + m.join(', ') : '');
+      });
+      s += items.length ? items.join('\n') : '___';
+    } else {
+      s += '___';
+    }
+
+    s += '\nFeels well and fit for SACT depending on bloods.';
+    return s;
+  }
+
+  function build() {
+    const tpl = radio('tpl');
+    show('common', !!tpl);
+    show('output', !!tpl);
+    show('tpl-treatment', tpl === 'tx');
+    show('tpl-bloods', tpl === 'bl');
+
+    // treatment sub-sections
+    show('pvad-details', radio('access') === 'PVAD');
+    show('pm-details', radio('pm') !== 'none');
+    show('tx2', $('tx2on').checked);
+    [1, 2].forEach(n => {
+      show('tx' + n + '-inf', radio('tx' + n + '-type') === 'infusion');
+      show('tx' + n + '-inj', radio('tx' + n + '-type') === 'injection');
+    });
+    show('ct-date', $('ct').checked);
+    show('opa-date', $('opa').checked);
+
+    // bloods sub-sections
+    const proc = radio('bproc');
+    show('bl-picc', proc === 'PICC');
+    show('bl-port', proc === 'port');
+    show('bl-site', proc === 'PICC' || proc === 'port');
+    show('sym-list', radio('sact') === 'sym');
+    SYMS.forEach(x => {
+      const on = $('sym-' + x.id).checked;
+      $('sym-' + x.id + '-g').disabled = !on;
+      show('sym-' + x.id + '-mods', on);
+      if (x.opts) $('sym-' + x.id + '-o').disabled = !on;
+    });
+
+    if (!tpl) { $('out').value = ''; return; }
+    const name = b(val('name'));
+    $('out').value = tpl === 'tx' ? buildTreatment(name) : buildBloods(name);
+  }
+
+  $('f').addEventListener('input', build);
+  $('f').addEventListener('change', build);
+  $('f').addEventListener('submit', e => e.preventDefault());
+
+  function flash(msg) {
+    $('status').textContent = msg;
+    clearTimeout(flash.t);
+    flash.t = setTimeout(() => { $('status').textContent = ''; }, 3000);
+  }
+
+  $('copy').addEventListener('click', async () => {
+    const text = $('out').value;
+    try {
+      await navigator.clipboard.writeText(text);
+      flash('Copied ✓');
+    } catch (e) {
+      $('out').focus(); $('out').select();
+      try { document.execCommand('copy') ? flash('Copied ✓') : flash('Text selected, press Ctrl+C / ⌘C'); }
+      catch (e2) { flash('Text selected, press Ctrl+C / ⌘C'); }
+    }
+  });
+
+  $('clear').addEventListener('click', () => {
+    const tpl = radio('tpl');
+    $('f').reset();
+    if (tpl) document.querySelector('input[name="tpl"][value="' + tpl + '"]').checked = true;
+    build();
+    $('name').focus();
+    flash('Cleared');
+  });
+
+  build();
+})();
+</script>
+</body>
+</html>
